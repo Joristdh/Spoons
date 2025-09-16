@@ -8,13 +8,15 @@ obj.__index = obj
 
 -- Metadata
 obj.name = "RoundedCorners"
-obj.version = "1.0"
+obj.version = "1.1"
 obj.author = "Chris Jones <cmsj@tenshu.net>"
 obj.homepage = "https://github.com/Hammerspoon/Spoons"
 obj.license = "MIT - https://opensource.org/licenses/MIT"
 
 obj.corners = {}
+obj.topCorners = {}
 obj.screenWatcher = nil
+obj.spacesWatcher = nil
 
 --- RoundedCorners.allScreens
 --- Variable
@@ -23,13 +25,18 @@ obj.allScreens = true
 
 --- RoundedCorners.radius
 --- Variable
---- Controls the radius of the rounded corners, in points. Defaults to 6
-obj.radius = 6
+--- Controls the radius of the rounded corners, in points. Defaults to 12
+obj.radius = 12
 
 --- RoundedCorners.level
 --- Variable
 --- Controls which level of the screens the corners are drawn at. See `hs.canvas.windowLevels` for more information. Defaults to `screenSaver + 1`
 obj.level = hs.canvas.windowLevels["screenSaver"] + 1
+
+--- RoundedCorners.excludeMenuBar
+--- Variable
+--- Controls whether the rounded corners are drawn below the menu bar. Defaults to false
+obj.excludeMenuBar = false
 
 -- Internal function used to find our location, so we know where to load files from
 local function script_path()
@@ -40,6 +47,10 @@ obj.spoonPath = script_path()
 
 function obj:init()
     self.screenWatcher = hs.screen.watcher.new(function() self:screensChanged() end)
+    self.spacesWatcher = hs.spaces.watcher.new(function ()
+        self.excludeMenuBar = hs.window.frontmostWindow():isFullScreen()
+        self:spacesChanged()
+    end)
 end
 
 --- RoundedCorners:start()
@@ -56,6 +67,7 @@ end
 ---  * This will draw the rounded screen corners and start watching for changes in screen sizes/layouts, reacting accordingly
 function obj:start()
     self.screenWatcher:start()
+    self.spacesWatcher:start()
     self:render()
     return self
 end
@@ -74,12 +86,26 @@ end
 ---  * This will remove all rounded screen corners and stop watching for changes in screen sizes/layouts
 function obj:stop()
     self.screenWatcher:stop()
+    self.spacesWatcher:stop()
     self:deleteAllCorners()
     return self
 end
 
+-- Delete only the dynamic top corners
+function obj:deleteTopCorners()
+    hs.fnutils.each(self.topCorners, function(corner) corner:delete() end)
+    self.topCorners = {}
+end
+
+-- React to the spaces having changed
+function obj:spacesChanged()
+    self:deleteTopCorners()
+    self:render(true)
+end
+
 -- Delete all the corners
 function obj:deleteAllCorners()
+    self:deleteTopCorners()
     hs.fnutils.each(self.corners, function(corner) corner:delete() end)
     self.corners = {}
 end
@@ -99,11 +125,21 @@ function obj:getScreens()
     end
 end
 
+-- Draw a single corner
+function obj:draw(data, radius, offset, behavior) 
+    return hs.canvas.new({x=data.frame.x,y=data.frame.y+offset,w=radius,h=radius}):appendElements(
+        { action="build", type="rectangle", },
+        { action="clip", type="circle", center=data.center, radius=radius, reversePath=true, },
+        { action="fill", type="rectangle", frame={x=0, y=0, w=radius, h=radius, }, fillColor={ alpha=1, }},
+        { type="resetClip", }
+    ):behavior({hs.canvas.windowBehaviors.stationary, behavior}):level(self.level):show()
+end
+
 -- Draw the corners
-function obj:render()
-    local screens = self:getScreens()
+function obj:render(topOnly)
+    local offset = self.excludeMenuBar and 37 or 0
     local radius = self.radius
-    hs.fnutils.each(screens, function(screen)
+    hs.fnutils.each(self:getScreens(), function(screen)
         local screenFrame = screen:fullFrame()
         local cornerData = {
           { frame={x=screenFrame.x, y=screenFrame.y}, center={x=radius,y=radius} },
@@ -111,13 +147,12 @@ function obj:render()
           { frame={x=screenFrame.x, y=screenFrame.y + screenFrame.h - radius}, center={x=radius,y=0} },
           { frame={x=screenFrame.x + screenFrame.w - radius, y=screenFrame.y + screenFrame.h - radius}, center={x=0,y=0} },
         }
-        for _,data in pairs(cornerData) do
-            self.corners[#self.corners+1] = hs.canvas.new({x=data.frame.x,y=data.frame.y,w=radius,h=radius}):appendElements(
-                { action="build", type="rectangle", },
-                { action="clip", type="circle", center=data.center, radius=radius, reversePath=true, },
-                { action="fill", type="rectangle", frame={x=0, y=0, w=radius, h=radius, }, fillColor={ alpha=1, }},
-                { type="resetClip", }
-            ):behavior(hs.canvas.windowBehaviors.canJoinAllSpaces):level(self.level):show()
+        for i, data in pairs(cornerData) do
+            if (screen:name() == "Built-in Retina Display" and i < 3) then  
+                self.topCorners[#self.topCorners+1] = obj:draw(data, radius, offset)
+            elseif (not topOnly) then
+                self.corners[#self.corners+1] = obj:draw(data, radius, 0, hs.canvas.windowBehaviors.canJoinAllSpaces)
+            end
         end
     end)
 end
