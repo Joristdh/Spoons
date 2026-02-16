@@ -33,11 +33,6 @@ obj.radius = 12
 --- Controls which level of the screens the corners are drawn at. See `hs.canvas.windowLevels` for more information. Defaults to `screenSaver + 1`
 obj.level = hs.canvas.windowLevels["screenSaver"] + 1
 
---- RoundedCorners.excludeMenuBar
---- Variable
---- Controls whether the rounded corners are drawn below the menu bar. Defaults to false
-obj.excludeMenuBar = false
-
 -- Internal function used to find our location, so we know where to load files from
 local function script_path()
     local str = debug.getinfo(2, "S").source:sub(2)
@@ -47,10 +42,7 @@ obj.spoonPath = script_path()
 
 function obj:init()
     self.screenWatcher = hs.screen.watcher.new(function() self:screensChanged() end)
-    self.spacesWatcher = hs.spaces.watcher.new(function ()
-        self.excludeMenuBar = hs.window.frontmostWindow():isFullScreen()
-        self:spacesChanged()
-    end)
+    self.spacesWatcher = hs.spaces.watcher.new(function() self:spacesChanged() end)
 end
 
 --- RoundedCorners:start()
@@ -137,9 +129,10 @@ end
 
 -- Draw the corners
 function obj:render(topOnly)
-    local offset = self.excludeMenuBar and 37 or 0
     local radius = self.radius
     hs.fnutils.each(self:getScreens(), function(screen)
+        local windows = hs.window.filter.new():setScreens(screen:id()):getWindows()
+        local offset = screen:id() == 1 and #windows > 0 and windows[1]:isFullscreen() and 33 or 0
         local screenFrame = screen:fullFrame()
         local cornerData = {
           { frame={x=screenFrame.x, y=screenFrame.y}, center={x=radius,y=radius} },
@@ -148,7 +141,7 @@ function obj:render(topOnly)
           { frame={x=screenFrame.x + screenFrame.w - radius, y=screenFrame.y + screenFrame.h - radius}, center={x=0,y=0} },
         }
         for i, data in pairs(cornerData) do
-            if (screen:name() == "Built-in Retina Display" and i < 3) then  
+            if (offset > 0 and i < 3) then  
                 self.topCorners[#self.topCorners+1] = obj:draw(data, radius, offset)
             elseif (not topOnly) then
                 self.corners[#self.corners+1] = obj:draw(data, radius, 0, hs.canvas.windowBehaviors.canJoinAllSpaces)
