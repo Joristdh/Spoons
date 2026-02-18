@@ -28,6 +28,12 @@ obj.allScreens = true
 --- Controls the radius of the rounded corners, in points. Defaults to 12
 obj.radius = 12
 
+
+--- RoundedCorners.offsetMenuBar
+--- Variable
+--- Controls the offset of the top corners when in fullscreen, in points. Defaults to 33, can be disabled by setting to 0
+obj.offsetMenuBar = 33
+
 --- RoundedCorners.level
 --- Variable
 --- Controls which level of the screens the corners are drawn at. See `hs.canvas.windowLevels` for more information. Defaults to `screenSaver + 1`
@@ -132,7 +138,7 @@ function obj:render(topOnly)
     local radius = self.radius
     hs.fnutils.each(self:getScreens(), function(screen)
         local windows = hs.window.filter.new():setScreens(screen:id()):getWindows()
-        local offset = screen:id() == 1 and #windows > 0 and windows[1]:isFullscreen() and 33 or 0
+        local offset = screen:id() == 1 and #windows > 0 and windows[1]:isFullscreen() and self.offsetMenuBar or 0
         local screenFrame = screen:fullFrame()
         local cornerData = {
           { frame={x=screenFrame.x, y=screenFrame.y}, center={x=radius,y=radius} },
