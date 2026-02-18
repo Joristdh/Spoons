@@ -29,10 +29,11 @@ obj.allScreens = true
 obj.radius = 12
 
 
---- RoundedCorners.offsetMenuBar
+--- RoundedCorners.fullscreenOffset
 --- Variable
---- Controls the offset of the top corners when in fullscreen, in points. Defaults to 33, can be disabled by setting to 0
-obj.offsetMenuBar = 33
+--- Controls the offset of the top corners when in fullscreen, in points. Defaults to 0
+--- Place just under the MenuBar in Tahoe: 33
+obj.fullscreenOffset = 0
 
 --- RoundedCorners.level
 --- Variable
@@ -138,7 +139,7 @@ function obj:render(topOnly)
     local radius = self.radius
     hs.fnutils.each(self:getScreens(), function(screen)
         local windows = hs.window.filter.new():setScreens(screen:id()):getWindows()
-        local offset = screen:id() == 1 and #windows > 0 and windows[1]:isFullscreen() and self.offsetMenuBar or 0
+        local offset = screen:id() == 1 and #windows > 0 and windows[1]:isFullscreen() and self.fullscreenOffset or 0
         local screenFrame = screen:fullFrame()
         local cornerData = {
           { frame={x=screenFrame.x, y=screenFrame.y}, center={x=radius,y=radius} },
