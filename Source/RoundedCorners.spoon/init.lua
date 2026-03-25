@@ -137,9 +137,10 @@ end
 -- Draw the corners
 function obj:render(topOnly)
     local radius = self.radius
+    local mission = hs.spaces.focusedSpace() == 1
     hs.fnutils.each(self:getScreens(), function(screen)
         local windows = hs.window.filter.new():setScreens(screen:id()):getWindows()
-        local offset = screen:id() == 1 and #windows > 0 and windows[1]:isFullscreen() and self.fullscreenOffset or 0
+        local offset = not mission and screen:id() == 1 and #windows > 0 and windows[1]:isFullscreen() and self.fullscreenOffset or 0
         local screenFrame = screen:fullFrame()
         local cornerData = {
           { frame={x=screenFrame.x, y=screenFrame.y}, center={x=radius,y=radius} },
